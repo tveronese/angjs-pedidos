@@ -1,0 +1,141 @@
+<html ng-app="pedidosApp">
+	<head>
+		<meta charset="UTF-8">
+		<title>Lanchonete</title>
+		<!-- Latest compiled and minified CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+		<!-- Optional theme -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+		<style>
+			.valueLabel {
+				font-weight: bold;
+			}
+		</style>
+		<script src="angular.js"></script>
+		<script src="angular-locale_pt-br.js"></script>
+		<script>
+			var app = angular.module('pedidosApp', []);
+			app.controller('pedidosCtrl', function($scope) {
+				$scope.cardapio = [
+					{ nome : 'Coca-cola', valor : 3, detalhes : "Lata de 350ml" },
+					{ nome : 'Cerveja', valor : 5, detalhes : "Garrafa de 600ml" },
+					{ nome : 'X-Burger', valor : 20, detalhes : "Com alface e queijo" },
+					{ nome : 'Batata-frita', valor : 15, detalhes : "Bem crocante" }
+				];
+				$scope.pedidos = [];
+				$scope.ordenarCardapio = function(nomeDoCampo) {
+					$scope.campoOrdemCardapio = nomeDoCampo;
+					$scope.direcaoOrdemCardapio = !$scope.direcaoOrdemCardapio;
+				};
+				$scope.adicionarPedido = function(pedido) {
+					pedido.hora = new Date();
+					$scope.pedidos.push(pedido);
+					delete $scope.pedido;
+					$scope.atualizarValorPedido();
+					$scope.pedidoForm.$setPristine();
+				};
+				$scope.atualizarValorPedido = function() {
+					$scope.valorTotalPedido = 0;
+					for (var i = 0; i < $scope.pedidos.length; i++) {
+						var pedido = $scope.pedidos[i];
+						$scope.valorTotalPedido += pedido.item.valor * pedido.quantidade;
+					}
+				};
+				$scope.cancelarPedido = function(pedido) {
+					var i = $scope.pedidos.indexOf(pedido);
+					$scope.pedidos.splice(i, 1);
+					$scope.atualizarValorPedido();
+				};
+				$scope.exibirDetalhes = function(item) {
+					$scope.pedidoSelecionado = item;
+				};
+				$scope.validarInput = function(campo) {
+					return campo.$valid || campo.$pristine;
+				};
+			});
+			app.filter('exclamation', function() {
+				return function(input, quantidade) {
+					quantidade = quantidade | 1;
+					for (var i = 0; i < quantidade; i++) {
+						input += '!';
+					};
+					return input;
+				};
+			});
+		</script>
+	</head>
+	<body ng-controller="pedidosCtrl">
+		<div class="container">
+			<h1>Lanchonete</h1>
+			<div style="width: 400px;">
+				<label for="filtroCardapio">Filtrar:</label>
+				<input type="text" id="filtroCardapio" ng-model="filtroCardapio" class="form-control" placeholder="O que você deseja?" />
+			</div>
+			<br />
+			<table class="table table-striped" style="width: 300px;">
+				<tr>
+					<th>
+						<a href="" ng-click="ordenarCardapio('nome')">Nome</a>
+					</th>
+					<th>
+						<a href="" ng-click="ordenarCardapio('valor')">Valor</a>
+					</th>
+				</tr>
+				<tr ng-repeat="item in cardapio | filter: { 'nome' : filtroCardapio } | orderBy:campoOrdemCardapio:direcaoOrdemCardapio">
+					<td>{{item.nome | exclamation:5}}</td>
+					<td>{{item.valor | currency}}</td>
+				</tr>
+			</table>
+			<h3>Adicionar item ao pedido:</h3>
+			<form name="pedidoForm" novalidate>
+				<fieldset style="width: 400px">
+					<div class="form-group has-feedback" ng-class="{'has-error' : !validarInput(pedidoForm.quantidade)}">
+						<label for="quantidadeInput">Quantidade</label>
+						<input type="number" name="quantidade" ng-model="pedido.quantidade" id="quantidadeInput" class="form-control" min="1" ng-required="true">
+						<span class="glyphicon glyphicon-remove form-control-feedback" ng-show="!validarInput(pedidoForm.quantidade)"></span>
+					</div>
+					<div class="form-group" ng-class="{'has-error' : !validarInput(pedidoForm.item) }">
+						<label for="produtoInput">Produto</label>
+						<select id="produtoInput" name="item" ng-model="pedido.item" ng-options="item.nome for item in cardapio" class="form-control" ng-required="true">
+							<option value="">Selecione um item</option>
+						</select>
+					</div>
+					<button ng-click="adicionarPedido(pedido)" ng-disabled="pedidoForm.$invalid" class="btn btn-sm btn-primary">Adicionar ao pedido</button>
+				</fieldset>
+			</form>
+			<div ng-hide="pedidos.length == 0">
+				<h3 class="sub-header">Pedido</h3>
+				<table class="table table-striped" style="width: 750px;">
+					<tr>
+						<th>Hora</th>
+						<th>Produto</th>
+						<th>Quantidade</th>
+						<th>Valor Un.</th>
+						<th>Valor Total</th>
+						<th></th>
+						<th></th>
+					</tr>
+					<tr ng-repeat="pedido in pedidos">
+						<td>{{pedido.hora | date:'dd/MM/yyyy HH:mm'}}</td>
+						<td>{{pedido.item.nome}}</td>
+						<td>{{pedido.quantidade}}</td>
+						<td ng-bind="pedido.item.valor | currency" />
+						<td>{{pedido.item.valor * pedido.quantidade | currency }}</td>
+						<td><a href="" ng-click="exibirDetalhes(pedido.item)">Detalhes</a></td>
+						<td><a href="" ng-click="cancelarPedido(pedido)">Cancelar</a></td>
+					</tr>
+				</table>
+				<div class="alert alert-info" style="width: 750px;" ng-show="pedidoSelecionado">
+					<span class="valueLabel">Produto:</span> {{pedidoSelecionado.nome}}
+					<span class="valueLabel">Detalhes:</span> {{pedidoSelecionado.detalhes}}
+				</div>
+				<p>
+					<span class="valueLabel">Pedidos:</span> {{pedidos.length}}
+				</p>
+				<p>
+					<span class="valueLabel">Valor total:</span> {{valorTotalPedido | currency }}
+				</p>
+			</div>
+		</div>
+	</body>
+</html>
