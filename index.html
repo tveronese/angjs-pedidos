@@ -6,6 +6,9 @@
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
 		<!-- Optional theme -->
 		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+		<!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
 		<style>
 			.valueLabel {
 				font-weight: bold;
@@ -15,36 +18,70 @@
 		<script src="angular-locale_pt-br.js"></script>
 		<script>
 			var app = angular.module('pedidosApp', []);
-			app.controller('pedidosCtrl', function($scope) {
-				$scope.cardapio = [
-					{ nome : 'Coca-cola', valor : 3, detalhes : "Lata de 350ml" },
-					{ nome : 'Cerveja', valor : 5, detalhes : "Garrafa de 600ml" },
-					{ nome : 'X-Burger', valor : 20, detalhes : "Com alface e queijo" },
-					{ nome : 'Batata-frita', valor : 15, detalhes : "Bem crocante" }
-				];
+
+			app.factory("api", function($http) {
+				var endpoint = "https://devweb.nexxera.com/pedidosweb";
+				var _getCardapio = function() {
+					return $http.get(endpoint + '/cardapio');
+				};
+				var _getPedidos = function() {
+					return $http.get(endpoint + '/pedidos');
+				};
+				var _adicionarPedido = function(pedido) {
+					return $http.post(endpoint + '/pedidos', pedido);
+				};
+
+				return {
+					getCardapio : _getCardapio,
+					getPedidos : _getPedidos,
+					adicionarPedido : _adicionarPedido
+				};
+			});
+			app.controller('pedidosCtrl', function($scope, $http, api) {
+
+				$scope.cardapio = [];
 				$scope.pedidos = [];
-				$scope.ordenarCardapio = function(nomeDoCampo) {
-					$scope.campoOrdemCardapio = nomeDoCampo;
+				var carregarCardapio = function() {
+					api.getCardapio().success(function(data) {
+						$scope.cardapio = data;
+					});
+				};
+				carregarCardapio();
+				var carregarPedidos = function() {
+					api.getPedidos().success(function(data) {
+						$scope.pedidos = data;
+						$scope.atualizarValorPedido();
+					});
+				};
+				carregarPedidos();
+				$scope.ordenarCardapio = function(descricaoDoCampo) {
+					$scope.campoOrdemCardapio = descricaoDoCampo;
 					$scope.direcaoOrdemCardapio = !$scope.direcaoOrdemCardapio;
 				};
 				$scope.adicionarPedido = function(pedido) {
-					pedido.hora = new Date();
-					$scope.pedidos.push(pedido);
-					delete $scope.pedido;
-					$scope.atualizarValorPedido();
-					$scope.pedidoForm.$setPristine();
+					api.adicionarPedido(pedido).success(function() {
+						delete $scope.pedido;
+						$scope.pedidoForm.$setPristine();
+						carregarPedidos();
+					});
 				};
 				$scope.atualizarValorPedido = function() {
 					$scope.valorTotalPedido = 0;
 					for (var i = 0; i < $scope.pedidos.length; i++) {
 						var pedido = $scope.pedidos[i];
-						$scope.valorTotalPedido += pedido.item.valor * pedido.quantidade;
+						$scope.valorTotalPedido += pedido.item.preco * pedido.quantidade;
 					}
 				};
 				$scope.cancelarPedido = function(pedido) {
 					var i = $scope.pedidos.indexOf(pedido);
 					$scope.pedidos.splice(i, 1);
-					$scope.atualizarValorPedido();
+					$http.delete(endpoint + '/pedidos/' + pedido.item.id)
+					.success(function() {
+						carregarPedidos();
+					})
+					.error(function(data) {
+						alert('erro ao cancelarPedido: ' + data);
+					});
 				};
 				$scope.exibirDetalhes = function(item) {
 					$scope.pedidoSelecionado = item;
@@ -62,6 +99,16 @@
 					return input;
 				};
 			});
+			app.directive("accordion", function() {
+				return {
+					templateUrl : "accordion.html",
+					restrict : "E",
+					transclude : true,
+					scope : {
+						title : "@"
+					}
+				};
+			});
 		</script>
 	</head>
 	<body ng-controller="pedidosCtrl">
@@ -72,18 +119,21 @@
 				<input type="text" id="filtroCardapio" ng-model="filtroCardapio" class="form-control" placeholder="O que você deseja?" />
 			</div>
 			<br />
+			<accordion title="Titulo do accordion">
+				Conteúdo do accordion.
+			</accordion>
 			<table class="table table-striped" style="width: 300px;">
 				<tr>
 					<th>
-						<a href="" ng-click="ordenarCardapio('nome')">Nome</a>
+						<a href="" ng-click="ordenarCardapio('descricao')">Descrição</a>
 					</th>
 					<th>
-						<a href="" ng-click="ordenarCardapio('valor')">Valor</a>
+						<a href="" ng-click="ordenarCardapio('preco')">Valor</a>
 					</th>
 				</tr>
-				<tr ng-repeat="item in cardapio | filter: { 'nome' : filtroCardapio } | orderBy:campoOrdemCardapio:direcaoOrdemCardapio">
-					<td>{{item.nome | exclamation:5}}</td>
-					<td>{{item.valor | currency}}</td>
+				<tr ng-repeat="item in cardapio | filter: { 'descricao' : filtroCardapio } | orderBy:campoOrdemCardapio:direcaoOrdemCardapio">
+					<td>{{item.descricao}}</td>
+					<td>{{item.preco | currency}}</td>
 				</tr>
 			</table>
 			<h3>Adicionar item ao pedido:</h3>
@@ -96,7 +146,7 @@
 					</div>
 					<div class="form-group" ng-class="{'has-error' : !validarInput(pedidoForm.item) }">
 						<label for="produtoInput">Produto</label>
-						<select id="produtoInput" name="item" ng-model="pedido.item" ng-options="item.nome for item in cardapio" class="form-control" ng-required="true">
+						<select id="produtoInput" name="item" ng-model="pedido.item" ng-options="item.descricao for item in cardapio" class="form-control" ng-required="true">
 							<option value="">Selecione um item</option>
 						</select>
 					</div>
@@ -107,7 +157,6 @@
 				<h3 class="sub-header">Pedido</h3>
 				<table class="table table-striped" style="width: 750px;">
 					<tr>
-						<th>Hora</th>
 						<th>Produto</th>
 						<th>Quantidade</th>
 						<th>Valor Un.</th>
@@ -116,17 +165,16 @@
 						<th></th>
 					</tr>
 					<tr ng-repeat="pedido in pedidos">
-						<td>{{pedido.hora | date:'dd/MM/yyyy HH:mm'}}</td>
-						<td>{{pedido.item.nome}}</td>
+						<td>{{pedido.item.descricao}}</td>
 						<td>{{pedido.quantidade}}</td>
-						<td ng-bind="pedido.item.valor | currency" />
-						<td>{{pedido.item.valor * pedido.quantidade | currency }}</td>
+						<td ng-bind="pedido.item.preco | currency" />
+						<td>{{pedido.item.preco * pedido.quantidade | currency }}</td>
 						<td><a href="" ng-click="exibirDetalhes(pedido.item)">Detalhes</a></td>
 						<td><a href="" ng-click="cancelarPedido(pedido)">Cancelar</a></td>
 					</tr>
 				</table>
 				<div class="alert alert-info" style="width: 750px;" ng-show="pedidoSelecionado">
-					<span class="valueLabel">Produto:</span> {{pedidoSelecionado.nome}}
+					<span class="valueLabel">Produto:</span> {{pedidoSelecionado.descricao}}
 					<span class="valueLabel">Detalhes:</span> {{pedidoSelecionado.detalhes}}
 				</div>
 				<p>
