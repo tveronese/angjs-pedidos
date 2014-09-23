@@ -1,0 +1,68 @@
+<h1>Lanchonete</h1>
+<div style="width: 400px;">
+    <label for="filtroCardapio">Filtrar:</label>
+    <input type="text" id="filtroCardapio" ng-model="filtroCardapio" class="form-control" placeholder="O que você deseja?" />
+</div>
+<br />
+<table class="table table-striped" style="width: 300px;">
+    <tr>
+        <th>
+            <a href="" ng-click="ordenarCardapio('descricao')">Descrição</a>
+        </th>
+        <th>
+            <a href="" ng-click="ordenarCardapio('preco')">Valor</a>
+        </th>
+    </tr>
+    <tr ng-repeat="item in cardapio | filter: { 'descricao' : filtroCardapio } | orderBy:campoOrdemCardapio:direcaoOrdemCardapio">
+        <td>{{item.descricao}}</td>
+        <td>{{item.preco | currency}}</td>
+    </tr>
+</table>
+<h3>Adicionar item ao pedido:</h3>
+<form name="pedidoForm" novalidate>
+    <fieldset style="width: 400px">
+        <div class="form-group has-feedback" ng-class="{'has-error' : !validarInput(pedidoForm.quantidade)}">
+            <label for="quantidadeInput">Quantidade</label>
+            <input type="number" name="quantidade" ng-model="pedido.quantidade" id="quantidadeInput" class="form-control" min="1" ng-required="true">
+            <span class="glyphicon glyphicon-remove form-control-feedback" ng-show="!validarInput(pedidoForm.quantidade)"></span>
+        </div>
+        <div class="form-group" ng-class="{'has-error' : !validarInput(pedidoForm.item) }">
+            <label for="produtoInput">Produto</label>
+            <select id="produtoInput" name="item" ng-model="pedido.item" ng-options="item.descricao for item in cardapio" class="form-control" ng-required="true">
+                <option value="">Selecione um item</option>
+            </select>
+        </div>
+        <button ng-click="adicionarPedido(pedido)" ng-disabled="pedidoForm.$invalid" class="btn btn-sm btn-primary">Adicionar ao pedido</button>
+    </fieldset>
+</form>
+<div ng-hide="pedidos.length == 0">
+    <h3 class="sub-header">Pedido</h3>
+    <table class="table table-striped" style="width: 750px;">
+        <tr>
+            <th>Produto</th>
+            <th>Quantidade</th>
+            <th>Valor Un.</th>
+            <th>Valor Total</th>
+            <th></th>
+            <th></th>
+        </tr>
+        <tr ng-repeat="pedido in pedidos">
+            <td>{{pedido.item.descricao}}</td>
+            <td>{{pedido.quantidade}}</td>
+            <td ng-bind="pedido.item.preco | currency" />
+            <td>{{pedido.item.preco * pedido.quantidade | currency }}</td>
+            <td><a href="#/detalhes/{{pedido.item.id}}">Detalhes</a></td>
+            <td><a ng-click="cancelarPedido(pedido)">Cancelar</a></td>
+        </tr>
+    </table>
+    <div class="alert alert-info" style="width: 750px;" ng-show="pedidoSelecionado">
+        <span class="valueLabel">Produto:</span> {{pedidoSelecionado.descricao}}
+        <span class="valueLabel">Detalhes:</span> {{pedidoSelecionado.detalhes}}
+    </div>
+    <p>
+        <span class="valueLabel">Pedidos:</span> {{pedidos.length}}
+    </p>
+    <p>
+        <span class="valueLabel">Valor total:</span> {{valorTotalPedido | currency }}
+    </p>
+</div>
